@@ -150,74 +150,6 @@
             margin-top: 6px;
         }
 
-        .buttons-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-        }
-
-        .play-pause-btn {
-            background: #FFFFFF;
-            color: #0E0E0E;
-            border: none;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 14px rgba(255, 255, 255, 0.25);
-        }
-
-        .play-pause-btn:hover {
-            transform: scale(1.06);
-            box-shadow: 0 4px 18px rgba(255, 255, 255, 0.4);
-        }
-
-        .play-pause-btn svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .volume-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            padding: 6px 12px;
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .volume-icon {
-            width: 16px;
-            height: 16px;
-            color: rgba(255, 255, 255, 0.7);
-            flex-shrink: 0;
-        }
-
-        .volume-bar {
-            -webkit-appearance: none;
-            width: 75px;
-            height: 4px;
-            border-radius: 2px;
-            background: rgba(255, 255, 255, 0.2);
-            outline: none;
-            cursor: pointer;
-        }
-
-        .volume-bar::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #FFFFFF;
-            cursor: pointer;
-        }
-
         .right-column {
             flex: 1;
             height: 84vh;
@@ -351,22 +283,6 @@
                         <span id="time-total">0:00</span>
                     </div>
                 </div>
-                <div class="buttons-container">
-                    <button id="btn-play-pause" class="play-pause-btn" aria-label="Play/Pause">
-                        <svg id="svg-play" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                        <svg id="svg-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
-                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                        </svg>
-                    </button>
-                    <div class="volume-container">
-                        <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                        </svg>
-                        <input type="range" id="volume-bar" class="volume-bar" min="0" max="1" step="0.05" value="0.8">
-                    </div>
-                </div>
             </div>
             <audio id="audio-player" preload="auto"></audio>
             <div style="display: flex; flex-direction: row; align-items: center; gap: 8px; align-self: flex-start;">
@@ -393,12 +309,8 @@
         const progressFill     = document.getElementById('progress-fill');
         const timeCurrentEl    = document.getElementById('time-current');
         const timeTotalEl      = document.getElementById('time-total');
-        const playPauseBtn     = document.getElementById('btn-play-pause');
-        const svgPlay          = document.getElementById('svg-play');
-        const svgPause         = document.getElementById('svg-pause');
-        const volumeBar        = document.getElementById('volume-bar');
 
-        audioPlayer.volume = volumeBar.value;
+        audioPlayer.volume = 1.0;
 
         // ─── State ───────────────────────────────────────────────────────────────
         let currentSongTitle   = "";
@@ -410,6 +322,7 @@
         let currentLyricsLRC   = null;
         let currentCoverToken  = null;
         let serverBase         = "";
+        let isChromecastMode   = false;
 
         // Detect URL query parameters for dynamic server host
         const urlParams = new URLSearchParams(window.location.search);
@@ -424,6 +337,7 @@
         // Initialize Google Cast CAF Receiver if available
         if (typeof cast !== 'undefined' && cast.framework) {
             try {
+                isChromecastMode = true;
                 const castContext = cast.framework.CastReceiverContext.getInstance();
                 const CAST_NAMESPACE = 'urn:x-cast:com.pescalerag.mmplayer';
 
@@ -432,7 +346,7 @@
                     try {
                         const data = typeof customEvent.data === 'string' ? JSON.parse(customEvent.data) : customEvent.data;
                         if (data && data.serverUrl) {
-                            serverBase = data.serverUrl.replace(/\/+$/, '');
+                            serverBase = data.serverUrl.replace(/\\/+$/, '');
                             console.log('[CAF Receiver] serverBase updated to:', serverBase);
                             updateState();
                         }
@@ -447,11 +361,24 @@
                     (loadRequestData) => {
                         console.log('[CAF Receiver] Intercepted LOAD request', loadRequestData);
                         if (loadRequestData.media && loadRequestData.media.customData && loadRequestData.media.customData.serverUrl) {
-                            serverBase = loadRequestData.media.customData.serverUrl.replace(/\/+$/, '');
+                            serverBase = loadRequestData.media.customData.serverUrl.replace(/\\/+$/, '');
                             console.log('[CAF Receiver] serverBase updated from LOAD request to:', serverBase);
                             updateState();
                         }
                         return loadRequestData;
+                    }
+                );
+
+                // Listen to time updates from CAF Receiver
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.TIME_UPDATE,
+                    (event) => {
+                        const current = event.currentMediaTime;
+                        const duration = playerManager.getDurationSec() || 1;
+                        if (progressFill) progressFill.style.width = ((current / duration) * 100) + '%';
+                        if (timeCurrentEl) timeCurrentEl.innerText  = formatTime(current);
+                        if (timeTotalEl) timeTotalEl.innerText    = formatTime(duration);
+                        syncLyrics(current);
                     }
                 );
 
@@ -460,10 +387,6 @@
                     maxInactivity: 3600,
                 });
                 console.log('[CAF Receiver] CastReceiverContext started');
-            } catch (err) {
-                console.warn('[CAF Receiver] CAF init error:', err);
-            }
-        }t started');
             } catch (err) {
                 console.warn('[CAF Receiver] CAF init error:', err);
             }
@@ -500,19 +423,28 @@
         // ─── Utilities ───────────────────────────────────────────────────────────
         function parseLRC(lrcText) {
             if (!lrcText) return [];
-            const lines = lrcText.split('\\n');
             const result = [];
-            const timeRegex = /\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})\\]/;
+            const timeRegex = /\\[(\\d{2,}):(\\d{2})[\\.:](\\d{2,3})\\]/g;
+            const lines = lrcText.split(/\\r?\\n/);
+            const tagRemoveRegex = /\\[\\d{2,}:\\d{2}[\\.:]\\d{2,3}\\]/g;
 
             for (const line of lines) {
-                const match = timeRegex.exec(line);
-                if (match) {
+                let match;
+                const times = [];
+                // Reset regex state
+                timeRegex.lastIndex = 0;
+                
+                while ((match = timeRegex.exec(line)) !== null) {
                     const minutes = parseInt(match[1], 10);
                     const seconds = parseInt(match[2], 10);
-                    const millis  = parseInt(match[3].padEnd(3, '0').substring(0, 3), 10);
-                    const time    = minutes * 60 + seconds + millis / 1000;
-                    const text    = line.replace(timeRegex, '').trim();
-                    if (text) result.push({ time, text });
+                    const millisStr = match[3].padEnd(3, '0').substring(0, 3);
+                    const millis = parseInt(millisStr, 10);
+                    times.push(minutes * 60 + seconds + millis / 1000);
+                }
+                
+                const text = line.replace(tagRemoveRegex, '').trim();
+                if (text && times.length > 0) {
+                    times.forEach(time => result.push({ time, text }));
                 }
             }
             return result.sort((a, b) => a.time - b.time);
@@ -568,17 +500,8 @@
             });
         }
 
-        function setUIPlaying(isPlaying) {
-            if (isPlaying) {
-                svgPlay.style.display  = 'none';
-                svgPause.style.display = 'block';
-            } else {
-                svgPlay.style.display  = 'block';
-                svgPause.style.display = 'none';
-            }
-        }
-
         function tryPlayAudio() {
+            if (isChromecastMode) return;
             isAutoplayBlocked = false;
             audioPlayer.play().then(() => {
                 statusEl.innerText = "Reproduciendo";
@@ -632,7 +555,7 @@
                     currentLyricsLRC   = state.lyricsLRC;
                     renderLyrics(state.lyricsLRC);
 
-                    if (state.mediaFileName) {
+                    if (state.mediaFileName && !isChromecastMode) {
                         const hostIp   = window.location.hostname || 'localhost';
                         const mediaPort = window.location.port || '8080';
                         const mediaUrl = (serverBase ? (serverBase + '/static/') : ('http://' + hostIp + ':' + mediaPort + '/static/')) + state.mediaFileName + '?t=' + Date.now();
@@ -646,13 +569,16 @@
                         }
 
                         const shouldPlay = state.playIntent || state.isPlaying !== false;
-                        setUIPlaying(shouldPlay);
-
+                        
                         audioPlayer.play().then(() => {
                             statusEl.innerText = "Transmitiendo";
                         }).catch(() => {
                             // If autoplay blocked, will trigger oncanplay or user click
                         });
+                    } else if (isChromecastMode) {
+                        statusEl.innerText = "Transmitiendo";
+                        statusEl.style.backgroundColor = "rgba(139,92,246,0.2)";
+                        statusEl.style.color = "#A78BFA";
                     }
                     isFetchingAudio = false;
                 } else if (!isFetchingAudio) {
@@ -660,15 +586,14 @@
                     if (currentLyricsLRC !== state.lyricsLRC) {
                         currentLyricsLRC = state.lyricsLRC;
                         renderLyrics(state.lyricsLRC);
-                        syncLyrics(audioPlayer.currentTime);
+                        syncLyrics(isChromecastMode ? 0 : audioPlayer.currentTime);
                     }
 
                     // Fast state synchronization (400ms cooldown after user actions)
-                    if (Date.now() - lastActionTime > 400) {
+                    if (Date.now() - lastActionTime > 400 && !isChromecastMode) {
                         const isNearEnd = audioPlayer.duration && (audioPlayer.currentTime > audioPlayer.duration - 2);
                         const shouldPlay = state.isPlaying && !audioPlayer.ended && !isNearEnd;
 
-                        setUIPlaying(state.isPlaying);
                         if (shouldPlay && audioPlayer.paused && !isAutoplayBlocked && !audioPlayer.error) {
                             audioPlayer.play().catch(err => {
                                 if (err.name === 'NotAllowedError') {
@@ -707,54 +632,36 @@
         }
 
         // ─── Audio event handlers ────────────────────────────────────────────────
-        audioPlayer.ontimeupdate = () => {
-            if (!isUserSeeking) {
-                const current = audioPlayer.currentTime;
-                const duration = audioPlayer.duration || 1;
-                progressFill.style.width = ((current / duration) * 100) + '%';
-                timeCurrentEl.innerText  = formatTime(current);
-                timeTotalEl.innerText    = formatTime(duration);
-                syncLyrics(current);
-            }
-        };
+        if (!isChromecastMode) {
+            audioPlayer.ontimeupdate = () => {
+                if (!isUserSeeking) {
+                    const current = audioPlayer.currentTime;
+                    const duration = audioPlayer.duration || 1;
+                    progressFill.style.width = ((current / duration) * 100) + '%';
+                    timeCurrentEl.innerText  = formatTime(current);
+                    timeTotalEl.innerText    = formatTime(duration);
+                    syncLyrics(current);
+                }
+            };
 
-        audioPlayer.onplay  = () => { setUIPlaying(true); };
-        audioPlayer.onpause = () => { setUIPlaying(false); };
-        audioPlayer.oncanplay = () => {
-            if (!isAutoplayBlocked && audioPlayer.paused) {
-                audioPlayer.play().catch(() => {});
-            }
-        };
+            audioPlayer.oncanplay = () => {
+                if (!isAutoplayBlocked && audioPlayer.paused) {
+                    audioPlayer.play().catch(() => {});
+                }
+            };
 
-        audioPlayer.onerror = () => {
-            const err = audioPlayer.error;
-            console.error("[AudioErrorEvent] Audio player error:", err);
-            statusEl.innerText = "Reintentando audio...";
-            statusEl.style.backgroundColor = "rgba(239,68,68,0.2)";
-            statusEl.style.color = "#FCA5A5";
-            setTimeout(() => {
-                currentSongTitle = "";
-                updateState();
-            }, 1200);
-        };
-
-        // ─── User controls ───────────────────────────────────────────────────────
-        playPauseBtn.onclick = () => {
-            const isPlaying = !audioPlayer.paused;
-            lastActionTime  = Date.now();
-            const baseUrl   = serverBase ? serverBase : '';
-            if (isPlaying) {
-                audioPlayer.pause();
-                setUIPlaying(false);
-                fetch(baseUrl + '/api/pause', { method: 'POST' }).catch(() => {});
-            } else {
-                audioPlayer.play().catch(() => {});
-                setUIPlaying(true);
-                fetch(baseUrl + '/api/play', { method: 'POST' }).catch(() => {});
-            }
-        };
-
-        volumeBar.oninput = () => { audioPlayer.volume = volumeBar.value; };
+            audioPlayer.onerror = () => {
+                const err = audioPlayer.error;
+                console.error("[AudioErrorEvent] Audio player error:", err);
+                statusEl.innerText = "Reintentando audio...";
+                statusEl.style.backgroundColor = "rgba(239,68,68,0.2)";
+                statusEl.style.color = "#FCA5A5";
+                setTimeout(() => {
+                    currentSongTitle = "";
+                    updateState();
+                }, 1200);
+            };
+        }
 
         // ─── Start polling (750ms for snappy sync) ──────────────────────────────
         setInterval(updateState, 750);

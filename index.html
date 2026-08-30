@@ -522,13 +522,15 @@
                     cast.framework.events.EventType.ERROR,
                     (event) => {
                         console.error('[CAF Receiver] Media Player Error:', event);
-                        setStatus("Error de reproducción", true);
+                        var errText = "Error de reproducción";
+                        if (event && event.detailedErrorCode) {
+                            errText += " (" + event.detailedErrorCode + ")";
+                        }
+                        setStatus(errText, true);
                     }
                 );
 
                 const castOptions = new cast.framework.CastReceiverOptions();
-                castOptions.customNamespaces = {};
-                castOptions.customNamespaces[CAST_NAMESPACE] = cast.framework.system.MessageType.JSON;
                 castOptions.disableIdleTimeout = true;
                 castOptions.maxInactivity = 3600;
                 castOptions.statusText = 'MMPlayer';

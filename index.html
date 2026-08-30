@@ -548,16 +548,10 @@
                     }
                 );
 
-                // PlaybackConfig: required to allow cross-origin HTTP media from local network.
-                // This is critical for Android TV boxes where the receiver is on HTTPS
-                // (GitHub Pages) but the audio comes from an HTTP server on the user's phone.
-                var playbackConfig = new cast.framework.PlaybackConfig();
-
                 var castOptions = new cast.framework.CastReceiverOptions();
                 castOptions.disableIdleTimeout = true;
                 castOptions.maxInactivity = 3600;
                 castOptions.statusText = 'MMPlayer';
-                castOptions.playbackConfig = playbackConfig;
 
                 castContext.start(castOptions);
                 console.log('[CAF Receiver] CastReceiverContext started successfully');

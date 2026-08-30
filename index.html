@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MMPlayer Chromecast</title>
-    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -14,6 +14,19 @@
             margin: 0;
             padding: 0;
             user-select: none;
+        }
+
+        cast-media-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            opacity: 0.001;
+            pointer-events: none;
+            z-index: -1;
+            --theme-hue: 260;
+            --playback-logo-image: none;
         }
 
         body {
@@ -260,6 +273,7 @@
     </style>
 </head>
 <body>
+    <cast-media-player></cast-media-player>
     <div id="background-blur"></div>
     <div id="background-overlay"></div>
 
@@ -283,7 +297,6 @@
                     </div>
                 </div>
             </div>
-            <cast-media-player style="display:none;"></cast-media-player>
             <div style="display: flex; flex-direction: row; align-items: center; gap: 8px; align-self: flex-start;">
                 <div class="status-badge" id="sync-status">Conectado</div>
                 <div class="beta-badge">Chromecast</div>
@@ -453,7 +466,7 @@
                     cast.framework.messages.MessageType.LOAD,
                     (loadRequestData) => {
                         console.log('[CAF Receiver] LOAD intercept:', loadRequestData);
-                        if (loadRequestData.media) {
+                        if (loadRequestData && loadRequestData.media) {
                             const meta = loadRequestData.media.metadata;
                             if (meta) {
                                 if (meta.title) titleEl.innerText = meta.title;
@@ -465,7 +478,7 @@
                             const custom = loadRequestData.media.customData;
                             if (custom && custom.lyricsLRC) {
                                 renderLyrics(custom.lyricsLRC);
-                            } else {
+                            } else if (custom && custom.lyricsLRC === '') {
                                 renderLyrics('');
                             }
                         }
@@ -504,10 +517,23 @@
                     }
                 );
 
-                castContext.start({
-                    disableIdleTimeout: true,
-                    maxInactivity: 3600,
-                });
+                // Error listener on playerManager
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.ERROR,
+                    (event) => {
+                        console.error('[CAF Receiver] Media Player Error:', event);
+                        setStatus("Error de reproducción", true);
+                    }
+                );
+
+                const castOptions = new cast.framework.CastReceiverOptions();
+                castOptions.customNamespaces = {};
+                castOptions.customNamespaces[CAST_NAMESPACE] = cast.framework.system.MessageType.JSON;
+                castOptions.disableIdleTimeout = true;
+                castOptions.maxInactivity = 3600;
+                castOptions.statusText = 'MMPlayer';
+
+                castContext.start(castOptions);
                 console.log('[CAF Receiver] CastReceiverContext started successfully');
             } catch (err) {
                 console.error('[CAF Receiver] CAF initialization error:', err);

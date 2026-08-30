@@ -313,8 +313,8 @@
         </div>
     </div>
 
-    <!-- Direct HTML5 Audio Engine -->
-    <audio id="audio-engine" preload="auto"></audio>
+    <!-- Official CAF Media Player element for Google Cast Framework -->
+    <cast-media-player></cast-media-player>
 
     <script>
         var titleEl          = document.getElementById('title');
@@ -326,7 +326,6 @@
         var progressFill     = document.getElementById('progress-fill');
         var timeCurrentEl    = document.getElementById('time-current');
         var timeTotalEl      = document.getElementById('time-total');
-        var audioElement     = document.getElementById('audio-engine');
 
         var FALLBACK_COVER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2'><rect width='20' height='20' x='2' y='2' rx='2'/><circle cx='12' cy='12' r='4'/></svg>";
 
@@ -452,93 +451,98 @@
             }
         }
 
-        // Setup HTML5 Audio Engine
-        if (audioElement) {
-            audioElement.ontimeupdate = function() {
-                var current = audioElement.currentTime;
-                var duration = audioElement.duration || 1;
-                progressFill.style.width = ((current / duration) * 100) + '%';
-                timeCurrentEl.innerText  = formatTime(current);
-                timeTotalEl.innerText    = formatTime(duration);
-                syncLyrics(current);
-            };
-
-            audioElement.onplay = function() {
-                setStatus("Transmitiendo", false);
-            };
-
-            audioElement.onpause = function() {
-                setStatus("En pausa", false);
-            };
-
-            audioElement.onwaiting = function() {
-                setStatus("Cargando...", false);
-            };
-
-            audioElement.onended = function() {
-                setStatus("Finalizado", false);
-            };
-
-            audioElement.onerror = function() {
-                var errCode = audioElement.error ? audioElement.error.code : 'unknown';
-                var errMsg = audioElement.error ? (audioElement.error.message || 'Error al reproducir audio') : 'Error desconocido';
-                console.error('[AudioEngine] Playback error:', errCode, errMsg);
-                setStatus("Error audio (" + errCode + ")", true);
-            };
-        }
-
         // Initialize Google Cast CAF Receiver
         if (typeof cast !== 'undefined' && cast.framework) {
             try {
                 var castContext = cast.framework.CastReceiverContext.getInstance();
                 var CAST_NAMESPACE = 'urn:x-cast:com.pescalerag.mmplayer';
 
-                // DIRECT CHANNEL LISTENER: Handles all playback commands directly via JSON
+                // 1. Canal personalizado (Datos Fuera de Banda): Recibe letras y carátula sin saturar el LOAD
                 castContext.addCustomMessageListener(CAST_NAMESPACE, function(customEvent) {
-                    clearTimeout(watchdogTimer);
-                    console.log('[CAF Receiver] Direct message received:', customEvent.data);
-
+                    console.log('[CAF Receiver] Custom message received:', customEvent.data);
                     try {
-                        var msg = typeof customEvent.data === 'string' ? JSON.parse(customEvent.data) : customEvent.data;
-                        if (!msg) return;
+                        var data = typeof customEvent.data === 'string' ? JSON.parse(customEvent.data) : customEvent.data;
+                        if (!data) return;
 
-                        var type = msg.type || (msg.audioUrl ? 'LOAD_TRACK' : '');
-
-                        if (type === 'LOAD_TRACK' || msg.audioUrl) {
-                            if (msg.title) titleEl.innerText = msg.title;
-                            if (msg.artist) artistEl.innerText = msg.artist;
-                            if (msg.coverUrl !== undefined) updateCover(msg.coverUrl);
-                            if (msg.lyricsLRC !== undefined) renderLyrics(msg.lyricsLRC);
-
-                            if (msg.audioUrl && audioElement) {
-                                setStatus("Cargando...", false);
-                                audioElement.src = msg.audioUrl;
-                                if (msg.position && msg.position > 0) {
-                                    audioElement.currentTime = msg.position;
-                                }
-                                audioElement.play().catch(function(e) {
-                                    console.warn('[AudioEngine] Autoplay prevented:', e);
-                                    setStatus("En pausa", false);
-                                });
-                            }
-                        } else if (type === 'PLAY' && audioElement) {
-                            audioElement.play().catch(function(e) { console.error('Play error:', e); });
-                        } else if (type === 'PAUSE' && audioElement) {
-                            audioElement.pause();
-                        } else if (type === 'SEEK' && audioElement && typeof msg.position === 'number') {
-                            audioElement.currentTime = msg.position;
-                        } else if (type === 'SET_VOLUME' && audioElement && typeof msg.volume === 'number') {
-                            audioElement.volume = Math.max(0, Math.min(1, msg.volume));
-                        } else if (type === 'UPDATE_TRACK') {
-                            if (msg.title) titleEl.innerText = msg.title;
-                            if (msg.artist) artistEl.innerText = msg.artist;
-                            if (msg.coverUrl !== undefined) updateCover(msg.coverUrl);
-                            if (msg.lyricsLRC !== undefined) renderLyrics(msg.lyricsLRC);
+                        if (data.action === 'UPDATE_LYRICS' || data.lyricsLRC !== undefined) {
+                            renderLyrics(data.lyricsLRC || '');
+                        }
+                        if (data.coverUrl) {
+                            updateCover(data.coverUrl);
                         }
                     } catch (e) {
-                        console.error('[CAF Receiver] Error processing direct message:', e);
+                        console.error('[CAF Receiver] Error parsing custom message:', e);
                     }
                 });
+
+                var playerManager = castContext.getPlayerManager();
+
+                // 2. Interceptor de Carga Oficial (Carga Ligera): Extrae metadatos y apaga el watchdog
+                playerManager.setMessageInterceptor(
+                    cast.framework.messages.MessageType.LOAD,
+                    function(loadRequestData) {
+                        clearTimeout(watchdogTimer);
+                        console.log('[CAF Receiver] Official LOAD intercepted');
+
+                        if (loadRequestData && loadRequestData.media) {
+                            var meta = loadRequestData.media.metadata;
+                            if (meta) {
+                                if (meta.title) titleEl.innerText = meta.title;
+                                if (meta.artist) artistEl.innerText = meta.artist;
+                                if (meta.images && meta.images[0] && meta.images[0].url) {
+                                    updateCover(meta.images[0].url);
+                                }
+                            }
+                        }
+                        setStatus("Cargando...", false);
+                        return loadRequestData;
+                    }
+                );
+
+                // 3. Sincronización de progreso y letras mediante eventos del PlayerManager
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.TIME_UPDATE,
+                    function(event) {
+                        var current = event.currentMediaTime;
+                        var duration = playerManager.getDurationSec() || 1;
+                        progressFill.style.width = ((current / duration) * 100) + '%';
+                        timeCurrentEl.innerText  = formatTime(current);
+                        timeTotalEl.innerText    = formatTime(duration);
+                        syncLyrics(current);
+                    }
+                );
+
+                // 4. Estados del reproductor nativo
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.PLAYER_STATE_CHANGED,
+                    function(event) {
+                        var state = event.playerState;
+                        console.log('[CAF Receiver] Player state:', state);
+                        if (state === cast.framework.messages.PlayerState.PLAYING) {
+                            setStatus("Transmitiendo", false);
+                        } else if (state === cast.framework.messages.PlayerState.PAUSED) {
+                            setStatus("En pausa", false);
+                        } else if (state === cast.framework.messages.PlayerState.BUFFERING) {
+                            setStatus("Cargando...", false);
+                        } else if (state === cast.framework.messages.PlayerState.IDLE) {
+                            if (event.idleReason === cast.framework.messages.IdleReason.FINISHED) {
+                                setStatus("Finalizado", false);
+                            } else if (event.idleReason === cast.framework.messages.IdleReason.ERROR) {
+                                setStatus("Error de reproducción", true);
+                            }
+                        }
+                    }
+                );
+
+                // 5. Listener de errores multimedia
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.ERROR,
+                    function(event) {
+                        var errCode = event && event.detailedErrorCode ? event.detailedErrorCode : (event && event.reason ? event.reason : 'unknown');
+                        console.error('[CAF Receiver] Media Error:', errCode, event);
+                        setStatus("Error (" + errCode + ")", true);
+                    }
+                );
 
                 var castOptions = new cast.framework.CastReceiverOptions();
                 castOptions.disableIdleTimeout = true;

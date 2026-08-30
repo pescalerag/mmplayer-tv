@@ -432,7 +432,7 @@
                     try {
                         const data = typeof customEvent.data === 'string' ? JSON.parse(customEvent.data) : customEvent.data;
                         if (data && data.serverUrl) {
-                            serverBase = data.serverUrl.replace(/\\/+$/, '');
+                            serverBase = data.serverUrl.replace(/\/+$/, '');
                             console.log('[CAF Receiver] serverBase updated to:', serverBase);
                             updateState();
                         }
@@ -441,11 +441,29 @@
                     }
                 });
 
+                const playerManager = castContext.getPlayerManager();
+                playerManager.setMessageInterceptor(
+                    cast.framework.messages.MessageType.LOAD,
+                    (loadRequestData) => {
+                        console.log('[CAF Receiver] Intercepted LOAD request', loadRequestData);
+                        if (loadRequestData.media && loadRequestData.media.customData && loadRequestData.media.customData.serverUrl) {
+                            serverBase = loadRequestData.media.customData.serverUrl.replace(/\/+$/, '');
+                            console.log('[CAF Receiver] serverBase updated from LOAD request to:', serverBase);
+                            updateState();
+                        }
+                        return loadRequestData;
+                    }
+                );
+
                 castContext.start({
                     disableIdleTimeout: true,
                     maxInactivity: 3600,
                 });
                 console.log('[CAF Receiver] CastReceiverContext started');
+            } catch (err) {
+                console.warn('[CAF Receiver] CAF init error:', err);
+            }
+        }t started');
             } catch (err) {
                 console.warn('[CAF Receiver] CAF init error:', err);
             }

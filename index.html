@@ -284,6 +284,7 @@
                 </div>
             </div>
             <audio id="audio-player" preload="auto"></audio>
+            <cast-media-player style="display:none;"></cast-media-player>
             <div style="display: flex; flex-direction: row; align-items: center; gap: 8px; align-self: flex-start;">
                 <div class="status-badge" id="sync-status">No hay canción</div>
                 <div class="beta-badge">MMPlayer</div>
@@ -311,6 +312,9 @@
 
         audioPlayer.volume = 1.0;
 
+        // ─── Detect Environment ───────────────────────────────────────────────────
+        const isChromecast = typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.indexOf('CrKey') !== -1;
+
         // ─── State ───────────────────────────────────────────────────────────────
         let currentSongTitle   = "";
         let isFetchingAudio    = false;
@@ -323,8 +327,10 @@
         let serverBase         = "";
 
         function resetToIdle(statusMessage) {
-            audioPlayer.pause();
-            audioPlayer.removeAttribute('src');
+            if (!isChromecast) {
+                audioPlayer.pause();
+                audioPlayer.removeAttribute('src');
+            }
             currentSongTitle   = "";
             currentLyricsLRC   = null;
             currentCoverToken  = null;
@@ -383,9 +389,30 @@
                         if (loadRequestData.media && loadRequestData.media.customData && loadRequestData.media.customData.serverUrl) {
                             serverBase = loadRequestData.media.customData.serverUrl.replace(/[\/]+$/, '');
                             console.log('[CAF Receiver] serverBase updated from LOAD request to:', serverBase);
-                            updateState();
                         }
+                        if (loadRequestData.media && loadRequestData.media.metadata) {
+                            const meta = loadRequestData.media.metadata;
+                            if (meta.title) titleEl.innerText = meta.title;
+                            if (meta.artist) artistEl.innerText = meta.artist;
+                            if (meta.images && meta.images[0] && meta.images[0].url) {
+                                coverEl.src = meta.images[0].url;
+                                backgroundBlur.style.backgroundImage = "url('" + meta.images[0].url + "')";
+                            }
+                        }
+                        updateState();
                         return loadRequestData;
+                    }
+                );
+
+                playerManager.addEventListener(
+                    cast.framework.events.EventType.TIME_UPDATE,
+                    (event) => {
+                        const current = event.currentMediaTime;
+                        const duration = playerManager.getDurationSec() || 1;
+                        progressFill.style.width = ((current / duration) * 100) + '%';
+                        timeCurrentEl.innerText  = formatTime(current);
+                        timeTotalEl.innerText    = formatTime(duration);
+                        syncLyrics(current);
                     }
                 );
 
@@ -517,6 +544,7 @@
         }
 
         function tryPlayAudio() {
+            if (isChromecast) return;
             isAutoplayBlocked = false;
             audioPlayer.play().then(() => {
                 statusEl.innerText = "Reproduciendo";
@@ -550,7 +578,7 @@
                 if (!response.ok) {
                     throw new Error('Response not OK');
                 }
-                const state    = await response.json();
+                const state = await response.json();
 
                 // No active track or stopped
                 if (!state.title || state.isStopped) {
@@ -563,13 +591,12 @@
                     updateCover(state.coverToken);
                 }
 
-                // Track changed → reload audio immediately
+                // Track changed → update info and reload audio if on PC
                 if (currentSongTitle !== state.title && !isFetchingAudio) {
                     currentSongTitle  = state.title;
                     isFetchingAudio   = true;
                     isAutoplayBlocked = false;
                     lastActionTime    = Date.now();
-                    statusEl.innerText = "Cargando audio...";
 
                     titleEl.innerText  = state.title;
                     artistEl.innerText = state.artist;
@@ -577,7 +604,7 @@
                     currentLyricsLRC   = state.lyricsLRC;
                     renderLyrics(state.lyricsLRC);
 
-                    if (state.mediaFileName) {
+                    if (!isChromecast && state.mediaFileName) {
                         const hostIp    = window.location.hostname || 'localhost';
                         const mediaPort = window.location.port || '8080';
                         const mediaUrl  = (serverBase ? (serverBase + '/static/') : ('http://' + hostIp + ':' + mediaPort + '/static/')) + state.mediaFileName + '?t=' + Date.now();
@@ -603,6 +630,10 @@
                                 statusEl.onclick = () => tryPlayAudio();
                             }
                         });
+                    } else if (isChromecast) {
+                        statusEl.innerText = "Transmitiendo";
+                        statusEl.style.backgroundColor = "rgba(139,92,246,0.2)";
+                        statusEl.style.color = "#A78BFA";
                     }
                     isFetchingAudio = false;
                 } else if (!isFetchingAudio) {
@@ -610,11 +641,11 @@
                     if (currentLyricsLRC !== state.lyricsLRC) {
                         currentLyricsLRC = state.lyricsLRC;
                         renderLyrics(state.lyricsLRC);
-                        syncLyrics(audioPlayer.currentTime);
+                        if (!isChromecast) syncLyrics(audioPlayer.currentTime);
                     }
 
-                    // Fast state synchronization (400ms cooldown after user actions)
-                    if (Date.now() - lastActionTime > 400) {
+                    // Fast state synchronization on PC
+                    if (!isChromecast && Date.now() - lastActionTime > 400) {
                         const isNearEnd = audioPlayer.duration && (audioPlayer.currentTime > audioPlayer.duration - 2);
                         const shouldPlay = state.isPlaying && !audioPlayer.ended && !isNearEnd;
 
@@ -641,11 +672,9 @@
                         }
                     }
 
-                    if (!isAutoplayBlocked && !audioPlayer.error) {
-                        statusEl.innerText = "Transmitiendo";
-                        statusEl.style.backgroundColor = "rgba(139,92,246,0.2)";
-                        statusEl.style.color = "#A78BFA";
-                    }
+                    statusEl.innerText = "Transmitiendo";
+                    statusEl.style.backgroundColor = "rgba(139,92,246,0.2)";
+                    statusEl.style.color = "#A78BFA";
                 }
 
             } catch (error) {
@@ -654,38 +683,40 @@
             }
         }
 
-        // ─── Audio event handlers ────────────────────────────────────────────────
-        audioPlayer.ontimeupdate = () => {
-            const current = audioPlayer.currentTime;
-            const duration = audioPlayer.duration || 1;
-            progressFill.style.width = ((current / duration) * 100) + '%';
-            timeCurrentEl.innerText  = formatTime(current);
-            timeTotalEl.innerText    = formatTime(duration);
-            syncLyrics(current);
-        };
+        // ─── Audio event handlers for PC ─────────────────────────────────────────
+        if (!isChromecast) {
+            audioPlayer.ontimeupdate = () => {
+                const current = audioPlayer.currentTime;
+                const duration = audioPlayer.duration || 1;
+                progressFill.style.width = ((current / duration) * 100) + '%';
+                timeCurrentEl.innerText  = formatTime(current);
+                timeTotalEl.innerText    = formatTime(duration);
+                syncLyrics(current);
+            };
 
-        audioPlayer.oncanplay = () => {
-            if (!isAutoplayBlocked && audioPlayer.paused) {
-                audioPlayer.play().catch(() => {});
-            }
-        };
+            audioPlayer.oncanplay = () => {
+                if (!isAutoplayBlocked && audioPlayer.paused) {
+                    audioPlayer.play().catch(() => {});
+                }
+            };
 
-        audioPlayer.onended = () => {
-            const baseUrl = serverBase ? serverBase : '';
-            fetch(baseUrl + '/api/next', { method: 'POST' }).catch(() => {});
-        };
+            audioPlayer.onended = () => {
+                const baseUrl = serverBase ? serverBase : '';
+                fetch(baseUrl + '/api/next', { method: 'POST' }).catch(() => {});
+            };
 
-        audioPlayer.onerror = () => {
-            const err = audioPlayer.error;
-            console.error("[AudioErrorEvent] Audio player error:", err);
-            statusEl.innerText = "Reintentando audio...";
-            statusEl.style.backgroundColor = "rgba(239,68,68,0.2)";
-            statusEl.style.color = "#FCA5A5";
-            setTimeout(() => {
-                currentSongTitle = "";
-                updateState();
-            }, 1200);
-        };
+            audioPlayer.onerror = () => {
+                const err = audioPlayer.error;
+                console.error("[AudioErrorEvent] Audio player error:", err);
+                statusEl.innerText = "Reintentando audio...";
+                statusEl.style.backgroundColor = "rgba(239,68,68,0.2)";
+                statusEl.style.color = "#FCA5A5";
+                setTimeout(() => {
+                    currentSongTitle = "";
+                    updateState();
+                }, 1200);
+            };
+        }
 
         // ─── Start polling (750ms for snappy sync) ──────────────────────────────
         setInterval(updateState, 750);

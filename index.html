@@ -475,29 +475,30 @@
                 // Intercept LOAD: extract metadata from mediaInfo.metadata and show immediately.
                 // lyricsLRC is NO LONGER in customData (too large → silently drops LOAD → 2473).
                 // It arrives via the custom message channel ~500ms after loadMedia.
+                // Intercept LOAD: Show incoming payload visually on TV screen for instant debugging
                 playerManager.setMessageInterceptor(
                     cast.framework.messages.MessageType.LOAD,
                     function(loadRequestData) {
-                        var url = loadRequestData && loadRequestData.media ? loadRequestData.media.contentUrl : 'N/A';
-                        console.log('[CAF Receiver] LOAD intercepted - url:', url);
                         clearTimeout(watchdogTimer);
+                        try {
+                            var media = loadRequestData ? loadRequestData.media : null;
+                            var rawMediaStr = media ? JSON.stringify(media) : 'No media';
+                            console.log('[CAF Receiver] LOAD intercept:', rawMediaStr);
 
-                        if (loadRequestData && loadRequestData.media) {
-                            var meta = loadRequestData.media.metadata;
-                            if (meta) {
-                                if (meta.title) titleEl.innerText = meta.title;
-                                if (meta.artist) artistEl.innerText = meta.artist;
+                            // VISUAL DEBUGGING ON TV SCREEN
+                            titleEl.innerText = "PAYLOAD: " + (media && media.contentId ? media.contentId : rawMediaStr.substring(0, 80));
+                            artistEl.innerText = "Type: " + (media ? media.contentType : 'N/A') + " | URL: " + (media ? (media.contentUrl || media.contentId) : 'N/A');
+
+                            if (media && media.metadata) {
+                                var meta = media.metadata;
                                 if (meta.images && meta.images[0] && meta.images[0].url) {
                                     updateCover(meta.images[0].url);
                                 }
                             }
-                            // Backwards compat: handle lyricsLRC if present from older app versions
-                            var custom = loadRequestData.media.customData;
-                            if (custom && custom.lyricsLRC) {
-                                renderLyrics(custom.lyricsLRC);
-                            }
+                            setStatus("LOAD RECIBIDO", false);
+                        } catch (e) {
+                            titleEl.innerText = "ERR PARSING LOAD: " + e.message;
                         }
-                        setStatus("Cargando...", false);
                         return loadRequestData;
                     }
                 );
@@ -537,13 +538,14 @@
                     }
                 );
 
-                // Detailed media error listener with error code
+                // Detailed media error listener with on-screen visual report
                 playerManager.addEventListener(
                     cast.framework.events.EventType.ERROR,
                     function(event) {
-                        var errCode = event && event.detailedErrorCode ? event.detailedErrorCode : 'unknown';
-                        var errReason = event && event.reason ? event.reason : '';
-                        console.error('[CAF Receiver] Media Error - code:', errCode, 'reason:', errReason);
+                        var errCode = event && event.detailedErrorCode ? event.detailedErrorCode : (event && event.reason ? event.reason : 'unknown');
+                        console.error('[CAF Receiver] Media Error:', JSON.stringify(event));
+                        titleEl.innerText = "ERROR EN REPRODUCCIÓN (" + errCode + ")";
+                        artistEl.innerText = "Detalle: " + (event && event.message ? event.message : JSON.stringify(event));
                         setStatus("Error (" + errCode + ")", true);
                     }
                 );

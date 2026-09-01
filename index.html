@@ -490,10 +490,10 @@
 
         function notifyNextTrack() {
             var now = Date.now();
-            if (now - lastNextTriggerTime < 2500) return; // Debounce
+            if (now - lastNextTriggerTime < 3000) return; // Debounce 3s
             lastNextTriggerTime = now;
 
-            console.log('[CAF Receiver] Song finished, notifying sender to advance track...');
+            console.log('[CAF Receiver] Song finished naturally, notifying sender to advance track...');
             // 1. Send message via Cast channel
             try {
                 if (castContext) {
@@ -547,13 +547,21 @@
                         console.log('[CAF Receiver] Official LOAD intercepted');
 
                         if (loadRequestData && loadRequestData.media) {
+                            if (!loadRequestData.media.contentUrl && loadRequestData.media.contentId) {
+                                loadRequestData.media.contentUrl = loadRequestData.media.contentId;
+                            }
+                            if (!loadRequestData.media.contentId && loadRequestData.media.contentUrl) {
+                                loadRequestData.media.contentId = loadRequestData.media.contentUrl;
+                            }
+
                             // Extract serverUrl and lyrics if embedded in customData
-                            if (loadRequestData.media.customData) {
-                                if (loadRequestData.media.customData.serverUrl) {
-                                    currentServerUrl = loadRequestData.media.customData.serverUrl;
+                            var customData = loadRequestData.customData || loadRequestData.media.customData;
+                            if (customData) {
+                                if (customData.serverUrl) {
+                                    currentServerUrl = customData.serverUrl;
                                 }
-                                if (loadRequestData.media.customData.lyricsLRC !== undefined) {
-                                    renderLyrics(loadRequestData.media.customData.lyricsLRC || '');
+                                if (customData.lyricsLRC !== undefined) {
+                                    renderLyrics(customData.lyricsLRC || '');
                                 }
                             } else if (loadRequestData.media.contentUrl) {
                                 try {
@@ -631,27 +639,23 @@
                     }
                 );
 
-                // 5. Listener de errores multimedia con reintento / salto automático
+                // 5. Listener de errores multimedia
                 safeAddEventListener(
                     playerManager,
                     cast.framework.events.EventType.ERROR,
                     function(event) {
                         var errCode = event && event.detailedErrorCode ? event.detailedErrorCode : (event && event.reason ? event.reason : 'unknown');
                         console.error('[CAF Receiver] Media Error:', errCode, event);
-                        retryErrorCount++;
-                        if (retryErrorCount <= 1) {
-                            setStatus("Reintentando audio...", false);
-                            setTimeout(function() {
-                                notifyNextTrack();
-                            }, 1200);
-                        } else {
-                            setStatus("Error (" + errCode + ")", true);
-                        }
+                        setStatus("Error de reproducción (" + errCode + ")", true);
                     }
                 );
 
+                var playbackConfig = new cast.framework.PlaybackConfig();
+                playbackConfig.autoResumeDuration = 0;
+
                 var castOptions = new cast.framework.CastReceiverOptions();
                 castOptions.disableIdleTimeout = true;
+                castOptions.playbackConfig = playbackConfig;
                 castOptions.customNamespaces = {};
                 castOptions.customNamespaces[CAST_NAMESPACE] = cast.framework.system.MessageType.JSON;
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MMPlayer Chromecast</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
     <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -82,6 +83,31 @@
             box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             z-index: 2;
             overflow: hidden;
+            transition: max-width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.45s ease;
+        }
+
+        .main-container.no-lyrics {
+            max-width: 560px;
+            justify-content: center;
+            align-items: center;
+            padding: 48px 40px;
+            gap: 0;
+        }
+
+        .main-container.no-lyrics .right-column {
+            display: none;
+        }
+
+        .main-container.no-lyrics .left-column {
+            flex: 1;
+            max-width: 100%;
+            width: 100%;
+            align-items: center;
+        }
+
+        .main-container.no-lyrics .artwork-wrapper {
+            width: 340px;
+            height: 340px;
         }
 
         .left-column {
@@ -93,6 +119,7 @@
             height: 100%;
             max-width: 520px;
             gap: 24px;
+            transition: all 0.45s ease;
         }
 
         .artwork-wrapper {
@@ -276,7 +303,6 @@
     </style>
 </head>
 <body>
-    <cast-media-player></cast-media-player>
     <div id="background-blur"></div>
     <div id="background-overlay"></div>
 
@@ -317,6 +343,7 @@
     <cast-media-player></cast-media-player>
 
     <script>
+        var mainContainer    = document.querySelector('.main-container');
         var titleEl          = document.getElementById('title');
         var artistEl         = document.getElementById('artist');
         var coverEl          = document.getElementById('cover');
@@ -331,6 +358,9 @@
 
         var lyrics             = [];
         var currentActiveIndex = -1;
+        var currentServerUrl   = '';
+        var lastNextTriggerTime = 0;
+        var retryErrorCount    = 0;
 
         // Watchdog: if no LOAD arrives within 30s of startup, show a helpful hint
         var watchdogTimer = setTimeout(function() {
@@ -351,6 +381,11 @@
                 statusEl.style.borderColor = "rgba(139,92,246,0.3)";
             }
         }
+
+        coverEl.onerror = function() {
+            coverEl.src = FALLBACK_COVER;
+            backgroundBlur.style.backgroundImage = "none";
+        };
 
         function updateCover(url) {
             if (url) {
@@ -409,10 +444,11 @@
             lyricsScroller.innerHTML = '';
             lyricsScroller.style.transform = 'translateY(0px)';
 
-            if (lyrics.length === 0) {
-                lyricsScroller.innerHTML = '<div class="lyric-line" style="text-align:center;">No hay letras cargadas</div>';
+            if (!lyrics || lyrics.length === 0) {
+                mainContainer.classList.add('no-lyrics');
                 return;
             }
+            mainContainer.classList.remove('no-lyrics');
             lyrics.forEach(function(item, index) {
                 var div = document.createElement('div');
                 div.className = 'lyric-line';
@@ -451,6 +487,30 @@
             }
         }
 
+        function notifyNextTrack() {
+            var now = Date.now();
+            if (now - lastNextTriggerTime < 2500) return; // Debounce
+            lastNextTriggerTime = now;
+
+            console.log('[CAF Receiver] Song finished, notifying sender to advance track...');
+            // 1. Send message via Cast channel
+            try {
+                if (castContext) {
+                    castContext.sendCustomMessage(CAST_NAMESPACE, undefined, { action: 'TRACK_ENDED' });
+                    console.log('[CAF Receiver] Sent TRACK_ENDED via Cast custom channel');
+                }
+            } catch (e) {
+                console.warn('[CAF Receiver] Error sending TRACK_ENDED via Cast channel:', e);
+            }
+
+            // 2. HTTP Fallback to mobile server /api/next in case phone is in deep sleep
+            if (currentServerUrl) {
+                fetch(currentServerUrl + '/api/next', { method: 'POST' })
+                    .then(function() { console.log('[CAF Receiver] /api/next HTTP fallback succeeded'); })
+                    .catch(function(err) { console.warn('[CAF Receiver] /api/next HTTP fallback error:', err); });
+            }
+        }
+
         // Initialize Google Cast CAF Receiver
         if (typeof cast !== 'undefined' && cast.framework) {
             try {
@@ -482,15 +542,33 @@
                     cast.framework.messages.MessageType.LOAD,
                     function(loadRequestData) {
                         clearTimeout(watchdogTimer);
+                        retryErrorCount = 0;
                         console.log('[CAF Receiver] Official LOAD intercepted');
 
                         if (loadRequestData && loadRequestData.media) {
+                            // Extract serverUrl and lyrics if embedded in customData
+                            if (loadRequestData.media.customData) {
+                                if (loadRequestData.media.customData.serverUrl) {
+                                    currentServerUrl = loadRequestData.media.customData.serverUrl;
+                                }
+                                if (loadRequestData.media.customData.lyricsLRC !== undefined) {
+                                    renderLyrics(loadRequestData.media.customData.lyricsLRC || '');
+                                }
+                            } else if (loadRequestData.media.contentUrl) {
+                                try {
+                                    var parsedUrl = new URL(loadRequestData.media.contentUrl);
+                                    currentServerUrl = parsedUrl.origin;
+                                } catch (urlErr) {}
+                            }
+
                             var meta = loadRequestData.media.metadata;
                             if (meta) {
                                 if (meta.title) titleEl.innerText = meta.title;
                                 if (meta.artist) artistEl.innerText = meta.artist;
                                 if (meta.images && meta.images[0] && meta.images[0].url) {
                                     updateCover(meta.images[0].url);
+                                } else {
+                                    updateCover(null);
                                 }
                             }
                         }
@@ -517,7 +595,7 @@
                     cast.framework.events.EventType.PLAYER_STATE_CHANGED,
                     function(event) {
                         var state = event.playerState;
-                        console.log('[CAF Receiver] Player state:', state);
+                        console.log('[CAF Receiver] Player state:', state, 'idleReason:', event.idleReason);
                         if (state === cast.framework.messages.PlayerState.PLAYING) {
                             setStatus("Transmitiendo", false);
                         } else if (state === cast.framework.messages.PlayerState.PAUSED) {
@@ -526,7 +604,8 @@
                             setStatus("Cargando...", false);
                         } else if (state === cast.framework.messages.PlayerState.IDLE) {
                             if (event.idleReason === cast.framework.messages.IdleReason.FINISHED) {
-                                setStatus("Finalizado", false);
+                                setStatus("Siguiente canción...", false);
+                                notifyNextTrack();
                             } else if (event.idleReason === cast.framework.messages.IdleReason.ERROR) {
                                 setStatus("Error de reproducción", true);
                             }
@@ -534,31 +613,53 @@
                     }
                 );
 
-                // 5. Listener de errores multimedia
+                // 5. Listener de errores multimedia con reintento / salto automático
                 playerManager.addEventListener(
                     cast.framework.events.EventType.ERROR,
                     function(event) {
                         var errCode = event && event.detailedErrorCode ? event.detailedErrorCode : (event && event.reason ? event.reason : 'unknown');
                         console.error('[CAF Receiver] Media Error:', errCode, event);
-                        setStatus("Error (" + errCode + ")", true);
+                        retryErrorCount++;
+                        if (retryErrorCount <= 1) {
+                            setStatus("Reintentando audio...", false);
+                            setTimeout(function() {
+                                notifyNextTrack();
+                            }, 1200);
+                        } else {
+                            setStatus("Error (" + errCode + ")", true);
+                        }
                     }
                 );
 
-                var castOptions = new cast.framework.CastReceiverOptions();
-                castOptions.disableIdleTimeout = true;
-                castOptions.maxInactivity = 3600;
-                castOptions.statusText = 'MMPlayer';
+                var castOptions = {
+                    disableIdleTimeout: true,
+                    maxInactivity: 3600,
+                    statusText: 'MMPlayer'
+                };
 
                 castContext.start(castOptions);
                 console.log('[CAF Receiver] CastReceiverContext started successfully');
             } catch (err) {
                 console.error('[CAF Receiver] CAF initialization error:', err);
-                setStatus('Error de inicialización', true);
+                setStatus('Error de inicialización: ' + (err ? err.message : ''), true);
             }
         } else {
             console.error('[CAF Receiver] cast.framework not available - SDK failed to load');
             setStatus('SDK no disponible', true);
         }
+
+        // Global Error Handler for TV On-Screen Diagnostics
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('Window Error:', msg, line, col);
+            var errEl = document.getElementById('debug-banner');
+            if (!errEl) {
+                errEl = document.createElement('div');
+                errEl.id = 'debug-banner';
+                errEl.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;background:rgba(220,38,38,0.9);color:#fff;padding:12px 18px;font-size:16px;border-radius:12px;z-index:999999;font-family:sans-serif;font-weight:bold;';
+                document.body.appendChild(errEl);
+            }
+            errEl.innerText = 'JS ERR: ' + msg + ' (L' + line + ':' + col + ')';
+        };
     </script>
 </body>
 </html>

@@ -18,14 +18,13 @@
         }
 
         cast-media-player {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 1;
-            --theme-hue: 260;
-            --playback-logo-image: none;
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            pointer-events: none;
+            opacity: 0.01;
         }
 
         body {
@@ -276,51 +275,7 @@
             text-shadow: 0 4px 20px rgba(139, 92, 246, 0.6);
         }
 
-        /* Debug & Diagnostics Overlay on TV Screen */
-        #debug-panel {
-            position: fixed;
-            bottom: 12px;
-            left: 12px;
-            right: 12px;
-            max-height: 38vh;
-            background: rgba(11, 13, 16, 0.94);
-            border: 1px solid rgba(239, 68, 68, 0.5);
-            border-radius: 12px;
-            padding: 12px 16px;
-            z-index: 999999;
-            font-family: monospace;
-            font-size: 13px;
-            color: #E2E8F0;
-            overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-            display: none;
-        }
 
-        #debug-panel.visible {
-            display: block;
-        }
-
-        .debug-row {
-            margin-bottom: 6px;
-            word-break: break-all;
-        }
-
-        .debug-label {
-            color: #F87171;
-            font-weight: bold;
-            margin-right: 6px;
-        }
-
-        .debug-logs {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            max-height: 16vh;
-            overflow-y: auto;
-            color: #94A3B8;
-            font-size: 11px;
-            line-height: 1.4;
-        }
 
         @media (max-width: 900px) {
             .main-container {
@@ -376,15 +331,7 @@
         </div>
     </div>
 
-    <!-- On-Screen Debug & Diagnostics Panel -->
-    <div id="debug-panel">
-        <div class="debug-row"><span class="debug-label">ESTADO:</span><span id="dbg-status">Iniciando...</span></div>
-        <div class="debug-row"><span class="debug-label">ERROR:</span><span id="dbg-error" style="color:#F87171;font-weight:bold;">Ninguno</span></div>
-        <div class="debug-row"><span class="debug-label">AUDIO URL:</span><span id="dbg-audio-url">-</span></div>
-        <div class="debug-row"><span class="debug-label">COVER URL:</span><span id="dbg-cover-url">-</span></div>
-        <div class="debug-row"><span class="debug-label">PROBE TEST:</span><span id="dbg-probe" style="color:#FBBF24;">-</span></div>
-        <div class="debug-logs" id="dbg-logs"></div>
-    </div>
+
 
     <!-- Official CAF Media Player element for Google Cast Framework -->
     <cast-media-player></cast-media-player>
@@ -401,33 +348,8 @@
         var timeCurrentEl    = document.getElementById('time-current');
         var timeTotalEl      = document.getElementById('time-total');
 
-        // Debug DOM Elements
-        var debugPanel       = document.getElementById('debug-panel');
-        var dbgStatus        = document.getElementById('dbg-status');
-        var dbgError         = document.getElementById('dbg-error');
-        var dbgAudioUrl      = document.getElementById('dbg-audio-url');
-        var dbgCoverUrl      = document.getElementById('dbg-cover-url');
-        var dbgProbe         = document.getElementById('dbg-probe');
-        var dbgLogs          = document.getElementById('dbg-logs');
-
-        function addLog(msg) {
-            console.log(msg);
-            if (dbgLogs) {
-                var p = document.createElement('div');
-                p.innerText = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-                dbgLogs.appendChild(p);
-                dbgLogs.scrollTop = dbgLogs.scrollHeight;
-            }
-        }
-
         function showDebugError(label, details) {
-            if (debugPanel) {
-                debugPanel.classList.add('visible');
-            }
-            if (dbgError) {
-                dbgError.innerText = label + ': ' + (typeof details === 'object' ? JSON.stringify(details) : details);
-            }
-            addLog('ERR -> ' + label + ': ' + (typeof details === 'object' ? JSON.stringify(details) : details));
+            console.error('ERR -> ' + label + ': ', details);
         }
 
         var FALLBACK_COVER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2'><rect width='20' height='20' x='2' y='2' rx='2'/><circle cx='12' cy='12' r='4'/></svg>";
@@ -752,7 +674,10 @@
 
                 castContext.start(castOptions);
                 castContext.setApplicationState('MMPlayer');
-                addLog('CastReceiverContext started successfully');
+                console.log('CastReceiverContext started successfully');
+                try {
+                    castContext.sendCustomMessage(CAST_NAMESPACE, undefined, { action: 'RECEIVER_READY' });
+                } catch (e) {}
             } catch (err) {
                 setStatus('Error de inicialización: ' + (err ? err.message : ''), true);
                 showDebugError('INIT_ERROR', err ? err.message : 'Unknown');

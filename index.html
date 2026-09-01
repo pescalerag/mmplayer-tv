@@ -148,98 +148,97 @@
             text-align: center;
             display: flex;
             flex-direction: column;
+            align-items: center;
             gap: 8px;
         }
 
         .title {
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 800;
+            line-height: 1.25;
             color: #FFFFFF;
-            white-space: nowrap;
+            letter-spacing: -0.02em;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
-            text-overflow: ellipsis;
-            letter-spacing: -0.5px;
-            text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            max-width: 100%;
         }
 
         .artist {
             font-size: 18px;
             font-weight: 600;
-            color: #94A3B8;
+            color: rgba(255, 255, 255, 0.72);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .player-controls {
             width: 100%;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 16px;
+            gap: 10px;
         }
 
         .progress-container {
-            width: 100%;
             display: flex;
             flex-direction: column;
             gap: 8px;
+            width: 100%;
         }
 
         .progress-bar-container {
             width: 100%;
-            height: 8px;
+            height: 6px;
             background: rgba(255, 255, 255, 0.12);
-            border-radius: 8px;
+            border-radius: 999px;
             overflow: hidden;
-            position: relative;
         }
 
         .progress-fill {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #8B5CF6, #EC4899);
-            border-radius: 8px;
-            transition: width 0.2s linear;
+            background: linear-gradient(90deg, #8B5CF6 0%, #C084FC 100%);
+            border-radius: 999px;
+            transition: width 0.25s linear;
         }
 
         .time-container {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
-            font-weight: 700;
-            color: #94A3B8;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 16px;
-            border-radius: 20px;
-            background: rgba(139, 92, 246, 0.18);
-            border: 1px solid rgba(139, 92, 246, 0.35);
+            padding: 6px 14px;
+            border-radius: 999px;
+            background-color: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
             color: #A78BFA;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.5px;
             text-transform: uppercase;
-            white-space: normal;
-            text-align: center;
-            max-width: 100%;
+            letter-spacing: 0.05em;
         }
 
         .beta-badge {
             display: inline-flex;
             align-items: center;
-            padding: 5px 12px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #CBD5E1;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background-color: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60A5FA;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
         }
 
         .right-column {
@@ -247,6 +246,9 @@
             height: 100%;
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
         }
@@ -254,49 +256,85 @@
         .lyrics-scroller {
             display: flex;
             flex-direction: column;
-            width: 100%;
-            padding: 45vh 20px;
-            transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+            gap: 28px;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            padding: 40vh 0;
         }
 
         .lyric-line {
-            font-size: 26px;
+            font-size: 32px;
             font-weight: 700;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.25);
-            margin: 14px 0;
+            color: rgba(255, 255, 255, 0.28);
+            line-height: 1.35;
             transition: all 0.35s ease;
-            text-align: left;
-            word-wrap: break-word;
-            transform-origin: left center;
+            cursor: default;
         }
 
         .lyric-line.active {
             color: #FFFFFF;
-            font-size: 36px;
+            font-size: 40px;
             font-weight: 800;
-            transform: scale(1.05);
-            text-shadow: 0 0 35px rgba(139, 92, 246, 0.65), 0 0 10px rgba(255, 255, 255, 0.4);
+            transform: scale(1.02);
+            text-shadow: 0 4px 20px rgba(139, 92, 246, 0.6);
+        }
+
+        /* Debug & Diagnostics Overlay on TV Screen */
+        #debug-panel {
+            position: fixed;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            max-height: 38vh;
+            background: rgba(11, 13, 16, 0.94);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            border-radius: 12px;
+            padding: 12px 16px;
+            z-index: 999999;
+            font-family: monospace;
+            font-size: 13px;
+            color: #E2E8F0;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            display: none;
+        }
+
+        #debug-panel.visible {
+            display: block;
+        }
+
+        .debug-row {
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+
+        .debug-label {
+            color: #F87171;
+            font-weight: bold;
+            margin-right: 6px;
+        }
+
+        .debug-logs {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            max-height: 16vh;
+            overflow-y: auto;
+            color: #94A3B8;
+            font-size: 11px;
+            line-height: 1.4;
         }
 
         @media (max-width: 900px) {
             .main-container {
                 flex-direction: column;
-                height: 100vh;
-                padding: 24px;
-                gap: 24px;
+                justify-content: center;
+                gap: 20px;
+                padding: 4vh 4vw;
             }
             .left-column {
-                max-width: 100%;
                 width: 100%;
-                gap: 12px;
+                max-width: 320px;
             }
-            .artwork-wrapper {
-                width: 200px;
-                height: 200px;
-            }
-            .title { font-size: 22px; }
-            .artist { font-size: 16px; }
             .right-column {
                 display: none;
             }
@@ -340,6 +378,16 @@
         </div>
     </div>
 
+    <!-- On-Screen Debug & Diagnostics Panel -->
+    <div id="debug-panel">
+        <div class="debug-row"><span class="debug-label">ESTADO:</span><span id="dbg-status">Iniciando...</span></div>
+        <div class="debug-row"><span class="debug-label">ERROR:</span><span id="dbg-error" style="color:#F87171;font-weight:bold;">Ninguno</span></div>
+        <div class="debug-row"><span class="debug-label">AUDIO URL:</span><span id="dbg-audio-url">-</span></div>
+        <div class="debug-row"><span class="debug-label">COVER URL:</span><span id="dbg-cover-url">-</span></div>
+        <div class="debug-row"><span class="debug-label">PROBE TEST:</span><span id="dbg-probe" style="color:#FBBF24;">-</span></div>
+        <div class="debug-logs" id="dbg-logs"></div>
+    </div>
+
     <!-- Official CAF Media Player element for Google Cast Framework -->
     <cast-media-player></cast-media-player>
 
@@ -355,27 +403,51 @@
         var timeCurrentEl    = document.getElementById('time-current');
         var timeTotalEl      = document.getElementById('time-total');
 
+        // Debug DOM Elements
+        var debugPanel       = document.getElementById('debug-panel');
+        var dbgStatus        = document.getElementById('dbg-status');
+        var dbgError         = document.getElementById('dbg-error');
+        var dbgAudioUrl      = document.getElementById('dbg-audio-url');
+        var dbgCoverUrl      = document.getElementById('dbg-cover-url');
+        var dbgProbe         = document.getElementById('dbg-probe');
+        var dbgLogs          = document.getElementById('dbg-logs');
+
+        function addLog(msg) {
+            console.log(msg);
+            if (dbgLogs) {
+                var p = document.createElement('div');
+                p.innerText = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+                dbgLogs.appendChild(p);
+                dbgLogs.scrollTop = dbgLogs.scrollHeight;
+            }
+        }
+
+        function showDebugError(label, details) {
+            if (debugPanel) {
+                debugPanel.classList.add('visible');
+            }
+            if (dbgError) {
+                dbgError.innerText = label + ': ' + (typeof details === 'object' ? JSON.stringify(details) : details);
+            }
+            addLog('ERR -> ' + label + ': ' + (typeof details === 'object' ? JSON.stringify(details) : details));
+        }
+
         var FALLBACK_COVER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2'><rect width='20' height='20' x='2' y='2' rx='2'/><circle cx='12' cy='12' r='4'/></svg>";
 
         var lyrics             = [];
         var currentActiveIndex = -1;
         var currentServerUrl   = '';
         var lastNextTriggerTime = 0;
-        var retryErrorCount    = 0;
-
-        // Watchdog: if no LOAD arrives within 30s of startup, show a helpful hint
-        var watchdogTimer = setTimeout(function() {
-            if (titleEl.innerText === 'Esperando contenido...') {
-                setStatus('Abre MMPlayer y reproduce una canción', false);
-            }
-        }, 30000);
+        var currentAudioUrl    = '';
 
         function setStatus(text, isError) {
             statusEl.innerText = text;
+            if (dbgStatus) dbgStatus.innerText = text;
             if (isError) {
                 statusEl.style.backgroundColor = "rgba(239,68,68,0.15)";
                 statusEl.style.color = "#FCA5A5";
                 statusEl.style.borderColor = "rgba(239,68,68,0.3)";
+                if (debugPanel) debugPanel.classList.add('visible');
             } else {
                 statusEl.style.backgroundColor = "rgba(139,92,246,0.15)";
                 statusEl.style.color = "#A78BFA";
@@ -384,11 +456,15 @@
         }
 
         coverEl.onerror = function() {
+            var failedSrc = coverEl.src;
             coverEl.src = FALLBACK_COVER;
             backgroundBlur.style.backgroundImage = "none";
+            addLog('Cover failed to load: ' + failedSrc);
+            if (dbgCoverUrl) dbgCoverUrl.innerText = failedSrc + ' (FAILED/404/CORS)';
         };
 
         function updateCover(url) {
+            if (dbgCoverUrl) dbgCoverUrl.innerText = url || 'None';
             if (url) {
                 coverEl.src = url;
                 backgroundBlur.style.backgroundImage = "url('" + url + "')";
@@ -396,6 +472,23 @@
                 coverEl.src = FALLBACK_COVER;
                 backgroundBlur.style.backgroundImage = "none";
             }
+        }
+
+        // Test connectivity to audio URL directly via fetch to check HTTP status & CORS
+        function testAudioUrl(url) {
+            if (!url) return;
+            if (dbgProbe) dbgProbe.innerText = 'Probando conexión con ' + url + '...';
+            fetch(url, { method: 'HEAD', mode: 'cors' })
+                .then(function(res) {
+                    var probeText = 'HTTP ' + res.status + ' ' + res.statusText + ' | Content-Type: ' + (res.headers.get('content-type') || 'N/A');
+                    if (dbgProbe) dbgProbe.innerText = probeText;
+                    addLog('Probe result: ' + probeText);
+                })
+                .catch(function(err) {
+                    var probeText = 'FALLO RED/CORS: ' + (err ? err.message : 'Error desconocido');
+                    if (dbgProbe) dbgProbe.innerText = probeText;
+                    addLog('Probe error: ' + probeText);
+                });
         }
 
         function parseLRC(lrcText) {
@@ -493,22 +586,13 @@
             if (now - lastNextTriggerTime < 3000) return; // Debounce 3s
             lastNextTriggerTime = now;
 
-            console.log('[CAF Receiver] Song finished naturally, notifying sender to advance track...');
-            // 1. Send message via Cast channel
+            addLog('Song finished naturally, notifying sender...');
             try {
                 if (castContext) {
                     castContext.sendCustomMessage(CAST_NAMESPACE, undefined, { action: 'TRACK_ENDED' });
-                    console.log('[CAF Receiver] Sent TRACK_ENDED via Cast custom channel');
                 }
             } catch (e) {
-                console.warn('[CAF Receiver] Error sending TRACK_ENDED via Cast channel:', e);
-            }
-
-            // 2. HTTP Fallback to mobile server /api/next in case phone is in deep sleep
-            if (currentServerUrl) {
-                fetch(currentServerUrl + '/api/next', { method: 'POST' })
-                    .then(function() { console.log('[CAF Receiver] /api/next HTTP fallback succeeded'); })
-                    .catch(function(err) { console.warn('[CAF Receiver] /api/next HTTP fallback error:', err); });
+                addLog('Error sending TRACK_ENDED via Cast channel: ' + e);
             }
         }
 
@@ -518,9 +602,9 @@
                 var castContext = cast.framework.CastReceiverContext.getInstance();
                 var CAST_NAMESPACE = 'urn:x-cast:com.pescalerag.mmplayer';
 
-                // 1. Canal personalizado (Datos Fuera de Banda): Recibe letras y carátula sin saturar el LOAD
+                // 1. Canal personalizado: Recibe letras y carátula
                 castContext.addCustomMessageListener(CAST_NAMESPACE, function(customEvent) {
-                    console.log('[CAF Receiver] Custom message received:', customEvent.data);
+                    addLog('Custom message: ' + JSON.stringify(customEvent.data));
                     try {
                         var data = typeof customEvent.data === 'string' ? JSON.parse(customEvent.data) : customEvent.data;
                         if (!data) return;
@@ -532,19 +616,17 @@
                             updateCover(data.coverUrl);
                         }
                     } catch (e) {
-                        console.error('[CAF Receiver] Error parsing custom message:', e);
+                        addLog('Error parsing custom message: ' + e);
                     }
                 });
 
                 var playerManager = castContext.getPlayerManager();
 
-                // 2. Interceptor de Carga Oficial (Carga Ligera): Extrae metadatos y apaga el watchdog
+                // 2. Interceptor de Carga Oficial: Extrae metadatos y URLs
                 playerManager.setMessageInterceptor(
                     cast.framework.messages.MessageType.LOAD,
                     function(loadRequestData) {
-                        clearTimeout(watchdogTimer);
-                        retryErrorCount = 0;
-                        console.log('[CAF Receiver] Official LOAD intercepted');
+                        addLog('LOAD message intercepted');
 
                         if (loadRequestData && loadRequestData.media) {
                             if (!loadRequestData.media.contentUrl && loadRequestData.media.contentId) {
@@ -554,7 +636,13 @@
                                 loadRequestData.media.contentId = loadRequestData.media.contentUrl;
                             }
 
-                            // Extract serverUrl and lyrics if embedded in customData
+                            currentAudioUrl = loadRequestData.media.contentUrl || '';
+                            if (dbgAudioUrl) dbgAudioUrl.innerText = currentAudioUrl;
+                            addLog('Loading audio: ' + currentAudioUrl);
+
+                            // Test URL reachability & CORS immediately
+                            testAudioUrl(currentAudioUrl);
+
                             var customData = loadRequestData.customData || loadRequestData.media.customData;
                             if (customData) {
                                 if (customData.serverUrl) {
@@ -563,11 +651,6 @@
                                 if (customData.lyricsLRC !== undefined) {
                                     renderLyrics(customData.lyricsLRC || '');
                                 }
-                            } else if (loadRequestData.media.contentUrl) {
-                                try {
-                                    var parsedUrl = new URL(loadRequestData.media.contentUrl);
-                                    currentServerUrl = parsedUrl.origin;
-                                } catch (urlErr) {}
                             }
 
                             var meta = loadRequestData.media.metadata;
@@ -586,18 +669,17 @@
                     }
                 );
 
-                // Helper to safely add event listeners without crashing if any event type constant varies
                 function safeAddEventListener(target, eventType, handler) {
                     if (target && eventType) {
                         try {
                             target.addEventListener(eventType, handler);
                         } catch (e) {
-                            console.warn('[CAF Receiver] Error adding listener for', eventType, e);
+                            addLog('Error adding listener: ' + eventType + ' ' + e);
                         }
                     }
                 }
 
-                // 3. Sincronización de progreso y letras mediante TIME_UPDATE
+                // 3. Sincronización de progreso y letras
                 safeAddEventListener(
                     playerManager,
                     cast.framework.events.EventType.TIME_UPDATE,
@@ -611,7 +693,7 @@
                     }
                 );
 
-                // 4. Estados del reproductor nativo mediante MEDIA_STATUS
+                // 4. Estados del reproductor nativo
                 safeAddEventListener(
                     playerManager,
                     cast.framework.events.EventType.MEDIA_STATUS,
@@ -620,7 +702,7 @@
                         if (!mediaStatus) return;
                         var state = mediaStatus.playerState;
                         var idleReason = mediaStatus.idleReason;
-                        console.log('[CAF Receiver] Player state:', state, 'idleReason:', idleReason);
+                        addLog('Player state: ' + state + ' | idleReason: ' + idleReason);
 
                         if (state === cast.framework.messages.PlayerState.PLAYING) {
                             setStatus("Transmitiendo", false);
@@ -633,20 +715,30 @@
                                 setStatus("Siguiente canción...", false);
                                 notifyNextTrack();
                             } else if (idleReason === cast.framework.messages.IdleReason.ERROR) {
-                                setStatus("Error de reproducción", true);
+                                setStatus("Error de reproducción (IDLE ERROR)", true);
+                                showDebugError('MEDIA_STATUS IDLE ERROR', {
+                                    idleReason: idleReason,
+                                    audioUrl: currentAudioUrl
+                                });
                             }
                         }
                     }
                 );
 
-                // 5. Listener de errores multimedia
+                // 5. Listener de errores multimedia detallados
                 safeAddEventListener(
                     playerManager,
                     cast.framework.events.EventType.ERROR,
                     function(event) {
                         var errCode = event && event.detailedErrorCode ? event.detailedErrorCode : (event && event.reason ? event.reason : 'unknown');
-                        console.error('[CAF Receiver] Media Error:', errCode, event);
+                        var errObj = {
+                            detailedErrorCode: event.detailedErrorCode,
+                            reason: event.reason,
+                            error: event.error,
+                            type: event.type
+                        };
                         setStatus("Error de reproducción (" + errCode + ")", true);
+                        showDebugError('PLAYER ERROR (' + errCode + ')', errObj);
                     }
                 );
 
@@ -661,27 +753,19 @@
 
                 castContext.start(castOptions);
                 castContext.setApplicationState('MMPlayer');
-                console.log('[CAF Receiver] CastReceiverContext started successfully');
+                addLog('CastReceiverContext started successfully');
             } catch (err) {
-                console.error('[CAF Receiver] CAF initialization error:', err);
                 setStatus('Error de inicialización: ' + (err ? err.message : ''), true);
+                showDebugError('INIT_ERROR', err ? err.message : 'Unknown');
             }
         } else {
-            console.error('[CAF Receiver] cast.framework not available - SDK failed to load');
             setStatus('SDK no disponible', true);
+            showDebugError('SDK_ERROR', 'cast.framework is undefined');
         }
 
         // Global Error Handler for TV On-Screen Diagnostics
         window.onerror = function(msg, url, line, col, error) {
-            console.error('Window Error:', msg, line, col);
-            var errEl = document.getElementById('debug-banner');
-            if (!errEl) {
-                errEl = document.createElement('div');
-                errEl.id = 'debug-banner';
-                errEl.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;background:rgba(220,38,38,0.9);color:#fff;padding:12px 18px;font-size:16px;border-radius:12px;z-index:999999;font-family:sans-serif;font-weight:bold;';
-                document.body.appendChild(errEl);
-            }
-            errEl.innerText = 'JS ERR: ' + msg + ' (L' + line + ':' + col + ')';
+            showDebugError('JS_EXCEPTION', msg + ' (L' + line + ':' + col + ')');
         };
     </script>
 </body>

@@ -18,13 +18,21 @@
         }
 
         cast-media-player {
-            position: fixed;
-            top: -9999px;
-            left: -9999px;
-            width: 1px;
-            height: 1px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            --theme-hue: 260;
+            --playback-logo-image: none;
+            --buffering-image: none;
+            --splash-image: none;
+            --pause-image: none;
+            --play-image: none;
+            --progress-color: transparent;
+            --spinner-color: transparent;
             pointer-events: none;
-            opacity: 0.01;
         }
 
         body {
@@ -49,7 +57,7 @@
             background-size: cover;
             background-position: center;
             filter: blur(70px) brightness(0.22) saturate(1.4);
-            z-index: 0;
+            z-index: 2;
             transition: background-image 0.8s ease-in-out;
             transform: scale(1.05);
         }
@@ -60,8 +68,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at center, rgba(11, 13, 16, 0.3) 0%, rgba(11, 13, 16, 0.88) 100%);
-            z-index: 1;
+            background: radial-gradient(circle at center, rgba(11, 13, 16, 0.4) 0%, rgba(11, 13, 16, 0.95) 100%);
+            background-color: #0b0d10;
+            z-index: 3;
         }
 
         .main-container {

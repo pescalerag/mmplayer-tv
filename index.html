@@ -269,20 +269,20 @@
         }
 
         .lyric-line {
-            font-size: 32px;
+            font-size: 24px;
             font-weight: 700;
             color: rgba(255, 255, 255, 0.28);
             line-height: 1.35;
-            transition: all 0.35s ease;
-            cursor: default;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            transform-origin: left center;
         }
 
         .lyric-line.active {
+            font-size: 32px;
             color: #FFFFFF;
-            font-size: 40px;
-            font-weight: 800;
-            transform: scale(1.02);
-            text-shadow: 0 4px 20px rgba(139, 92, 246, 0.6);
+            font-weight: 900;
+            text-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.1);
         }
 
 

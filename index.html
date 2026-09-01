@@ -23,9 +23,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            opacity: 0.001;
-            pointer-events: none;
-            z-index: -1;
+            z-index: 1;
             --theme-hue: 260;
             --playback-logo-image: none;
         }
@@ -74,7 +72,7 @@
             height: 100vh;
             padding: 6vh 6vw;
             gap: 6vw;
-            z-index: 2;
+            z-index: 10;
             overflow: hidden;
             align-items: center;
             justify-content: space-between;
@@ -744,6 +742,7 @@
 
                 var playbackConfig = new cast.framework.PlaybackConfig();
                 playbackConfig.autoResumeDuration = 0;
+                playbackConfig.enableCrossOriginRequests = true;
 
                 var castOptions = new cast.framework.CastReceiverOptions();
                 castOptions.disableIdleTimeout = true;

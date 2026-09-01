@@ -361,6 +361,10 @@
             console.error('ERR -> ' + label + ': ', details);
         }
 
+        function addLog(msg) {
+            console.log('[CastReceiver]', msg);
+        }
+
         var FALLBACK_COVER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2'><rect width='20' height='20' x='2' y='2' rx='2'/><circle cx='12' cy='12' r='4'/></svg>";
 
         var lyrics             = [];
@@ -371,12 +375,10 @@
 
         function setStatus(text, isError) {
             statusEl.innerText = text;
-            if (dbgStatus) dbgStatus.innerText = text;
             if (isError) {
                 statusEl.style.backgroundColor = "rgba(239,68,68,0.15)";
                 statusEl.style.color = "#FCA5A5";
                 statusEl.style.borderColor = "rgba(239,68,68,0.3)";
-                if (debugPanel) debugPanel.classList.add('visible');
             } else {
                 statusEl.style.backgroundColor = "rgba(139,92,246,0.15)";
                 statusEl.style.color = "#A78BFA";
@@ -389,11 +391,9 @@
             coverEl.src = FALLBACK_COVER;
             backgroundBlur.style.backgroundImage = "none";
             addLog('Cover failed to load: ' + failedSrc);
-            if (dbgCoverUrl) dbgCoverUrl.innerText = failedSrc + ' (FAILED/404/CORS)';
         };
 
         function updateCover(url) {
-            if (dbgCoverUrl) dbgCoverUrl.innerText = url || 'None';
             if (url) {
                 coverEl.src = url;
                 backgroundBlur.style.backgroundImage = "url('" + url + "')";
@@ -406,16 +406,13 @@
         // Test connectivity to audio URL directly via fetch to check HTTP status & CORS
         function testAudioUrl(url) {
             if (!url) return;
-            if (dbgProbe) dbgProbe.innerText = 'Probando conexión con ' + url + '...';
             fetch(url, { method: 'HEAD', mode: 'cors' })
                 .then(function(res) {
                     var probeText = 'HTTP ' + res.status + ' ' + res.statusText + ' | Content-Type: ' + (res.headers.get('content-type') || 'N/A');
-                    if (dbgProbe) dbgProbe.innerText = probeText;
                     addLog('Probe result: ' + probeText);
                 })
                 .catch(function(err) {
                     var probeText = 'FALLO RED/CORS: ' + (err ? err.message : 'Error desconocido');
-                    if (dbgProbe) dbgProbe.innerText = probeText;
                     addLog('Probe error: ' + probeText);
                 });
         }
@@ -566,7 +563,6 @@
                             }
 
                             currentAudioUrl = loadRequestData.media.contentUrl || '';
-                            if (dbgAudioUrl) dbgAudioUrl.innerText = currentAudioUrl;
                             addLog('Loading audio: ' + currentAudioUrl);
 
                             // Test URL reachability & CORS immediately

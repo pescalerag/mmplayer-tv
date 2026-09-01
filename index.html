@@ -578,8 +578,20 @@
                     }
                 );
 
-                // 3. Sincronización de progreso y letras mediante eventos del PlayerManager
-                playerManager.addEventListener(
+                // Helper to safely add event listeners without crashing if any event type constant varies
+                function safeAddEventListener(target, eventType, handler) {
+                    if (target && eventType) {
+                        try {
+                            target.addEventListener(eventType, handler);
+                        } catch (e) {
+                            console.warn('[CAF Receiver] Error adding listener for', eventType, e);
+                        }
+                    }
+                }
+
+                // 3. Sincronización de progreso y letras mediante TIME_UPDATE
+                safeAddEventListener(
+                    playerManager,
                     cast.framework.events.EventType.TIME_UPDATE,
                     function(event) {
                         var current = event.currentMediaTime;
@@ -591,12 +603,17 @@
                     }
                 );
 
-                // 4. Estados del reproductor nativo
-                playerManager.addEventListener(
-                    cast.framework.events.EventType.PLAYER_STATE_CHANGED,
+                // 4. Estados del reproductor nativo mediante MEDIA_STATUS
+                safeAddEventListener(
+                    playerManager,
+                    cast.framework.events.EventType.MEDIA_STATUS,
                     function(event) {
-                        var state = event.playerState;
-                        console.log('[CAF Receiver] Player state:', state, 'idleReason:', event.idleReason);
+                        var mediaStatus = event && event.mediaStatus;
+                        if (!mediaStatus) return;
+                        var state = mediaStatus.playerState;
+                        var idleReason = mediaStatus.idleReason;
+                        console.log('[CAF Receiver] Player state:', state, 'idleReason:', idleReason);
+
                         if (state === cast.framework.messages.PlayerState.PLAYING) {
                             setStatus("Transmitiendo", false);
                         } else if (state === cast.framework.messages.PlayerState.PAUSED) {
@@ -604,10 +621,10 @@
                         } else if (state === cast.framework.messages.PlayerState.BUFFERING) {
                             setStatus("Cargando...", false);
                         } else if (state === cast.framework.messages.PlayerState.IDLE) {
-                            if (event.idleReason === cast.framework.messages.IdleReason.FINISHED) {
+                            if (idleReason === cast.framework.messages.IdleReason.FINISHED) {
                                 setStatus("Siguiente canción...", false);
                                 notifyNextTrack();
-                            } else if (event.idleReason === cast.framework.messages.IdleReason.ERROR) {
+                            } else if (idleReason === cast.framework.messages.IdleReason.ERROR) {
                                 setStatus("Error de reproducción", true);
                             }
                         }
@@ -615,7 +632,8 @@
                 );
 
                 // 5. Listener de errores multimedia con reintento / salto automático
-                playerManager.addEventListener(
+                safeAddEventListener(
+                    playerManager,
                     cast.framework.events.EventType.ERROR,
                     function(event) {
                         var errCode = event && event.detailedErrorCode ? event.detailedErrorCode : (event && event.reason ? event.reason : 'unknown');
